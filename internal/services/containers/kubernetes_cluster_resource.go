@@ -2249,10 +2249,28 @@ func resourceKubernetesClusterUpdate(d *pluginsdk.ResourceData, meta interface{}
 		workloadAutoscalerProfileRaw := d.Get("workload_autoscaler_profile").([]interface{})
 		workloadAutoscalerProfile := expandKubernetesClusterWorkloadAutoscalerProfile(workloadAutoscalerProfileRaw, d)
 		if workloadAutoscalerProfile == nil {
-			existing.Model.Properties.WorkloadAutoScalerProfile = &managedclusters.ManagedClusterWorkloadAutoScalerProfile{
-				Keda: &managedclusters.ManagedClusterWorkloadAutoScalerProfileKeda{
-					Enabled: false,
-				},
+			// Check if existing model is nil as well, if not, this does nothing and do not mark update
+			if existing.Model.Properties.WorkloadAutoScalerProfile != nil {
+				// Assume either Keda or VPA is exited in the profile but is disabled (with false value)
+				updateCluster = false
+
+				// Check nil first, then check if it is enabled, then update it
+				if existing.Model.Properties.WorkloadAutoScalerProfile.Keda != nil {
+					if existing.Model.Properties.WorkloadAutoScalerProfile.Keda.Enabled == true {
+						existing.Model.Properties.WorkloadAutoScalerProfile.Keda.Enabled = false
+						updateCluster = true
+					}
+				}
+
+				// Check nil first, then check if it is enabled, then update it
+				if existing.Model.Properties.WorkloadAutoScalerProfile.VerticalPodAutoscaler != nil {
+					if existing.Model.Properties.WorkloadAutoScalerProfile.VerticalPodAutoscaler.Enabled == true {
+						existing.Model.Properties.WorkloadAutoScalerProfile.VerticalPodAutoscaler.Enabled = false
+						updateCluster = true
+					}
+				}
+			} else {
+				updateCluster = false
 			}
 		} else {
 			existing.Model.Properties.WorkloadAutoScalerProfile = workloadAutoscalerProfile
